@@ -42,18 +42,23 @@ PDF는 Markdown 입력과 같은 CLI로 실행합니다.
 uv run paper-agent run --paper test_paper.pdf --out runs/pdf_run
 ```
 
-LLM 분석을 사용하려면 API 키와 모델을 지정합니다. `PAPER_AGENT_LLM_API_KEY`가 없으면 `OPENAI_API_KEY`를 fallback으로 사용합니다.
+LLM 분석을 사용하려면 `.env`에 API 키와 모델 정보를 넣고 `--llm-provider openai-compatible`을 지정합니다. `.env`는 git에 커밋하지 않습니다.
 
 ```bash
-export PAPER_AGENT_LLM_API_KEY=...
+PAPER_AGENT_LLM_API_KEY=...
+PAPER_AGENT_LLM_MODEL=YOUR_MODEL
+PAPER_AGENT_LLM_BASE_URL=https://api.openai.com/v1
+PAPER_AGENT_LLM_TIMEOUT_SECONDS=60
+```
+
+```bash
 uv run paper-agent run \
   --paper test_paper.pdf \
   --out runs/pdf_llm_run \
-  --llm-provider openai-compatible \
-  --llm-model YOUR_MODEL
+  --llm-provider openai-compatible
 ```
 
-OpenAI-compatible 엔드포인트를 바꾸려면 `--llm-base-url`을 지정합니다.
+다른 dotenv 파일을 사용하려면 `--env-file path/to/.env`를 지정하고, OpenAI-compatible 엔드포인트를 CLI에서 직접 바꾸려면 `--llm-base-url`을 지정합니다.
 
 ## LangGraph 실행 흐름
 
@@ -103,7 +108,7 @@ uv run pytest
 현재 확인된 테스트 결과:
 
 ```text
-8 passed
+9 passed
 ```
 
 ## 프로젝트 구조
