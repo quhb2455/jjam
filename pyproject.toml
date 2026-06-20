@@ -9,9 +9,16 @@ description = "Codex-oriented harness that turns AI papers into implementation p
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "paper-agent maintainers" }]
-dependencies = []
+dependencies = [
+    "httpx>=0.28.1",
+    "langgraph>=1.2.6",
+    "pypdf>=6.4.1",
+]
 
 [project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[dependency-groups]
 dev = ["pytest>=7.0"]
 
 [project.scripts]
@@ -21,5 +28,6 @@ paper-agent = "paper_agent.cli:main"
 where = ["src"]
 
 [tool.pytest.ini_options]
+addopts = "-s"
 testpaths = ["tests"]
 pythonpath = ["src"]

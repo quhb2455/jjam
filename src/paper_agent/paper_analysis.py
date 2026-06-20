@@ -2,19 +2,139 @@
 
 from __future__ import annotations
 
+import json
+import os
 import re
 from pathlib import Path
+from typing import Any, Protocol
 
 from paper_agent.schemas import PaperAnalysisResult, PaperInput
 from paper_agent.utils import bullet_list, write_text
 
 
-class PaperReader:
-    """Reads supported paper files.
+class LLMAnalysisClient(Protocol):
+    """Contract for LLM-backed paper analysis."""
 
-    PDF support is intentionally shallow in the MVP because external PDF
-    parsers are a replaceable tool boundary.
-    """
+    def analyze(self, paper: PaperInput) -> PaperAnalysisResult:
+        """Return a structured analysis for the paper."""
+
+
+class OpenAICompatibleAnalysisClient:
+    """Calls an OpenAI-compatible chat completions API for paper analysis."""
+
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        base_url: str = "https://api.openai.com/v1",
+        timeout_seconds: float = 60.0,
+    ) -> None:
+        if not api_key:
+            raise ValueError("An API key is required for LLM paper analysis.")
+        if not model:
+            raise ValueError("A model name is required for LLM paper analysis.")
+        self.api_key = api_key
+        self.model = model
+        self.base_url = base_url.rstrip("/")
+        self.timeout_seconds = timeout_seconds
+
+    @classmethod
+    def from_env(cls) -> "OpenAICompatibleAnalysisClient":
+        api_key = os.getenv("PAPER_AGENT_LLM_API_KEY") or os.getenv("OPENAI_API_KEY", "")
+        model = os.getenv("PAPER_AGENT_LLM_MODEL", "")
+        base_url = os.getenv("PAPER_AGENT_LLM_BASE_URL", "https://api.openai.com/v1")
+        timeout = float(os.getenv("PAPER_AGENT_LLM_TIMEOUT_SECONDS", "60"))
+        return cls(api_key=api_key, model=model, base_url=base_url, timeout_seconds=timeout)
+
+    def analyze(self, paper: PaperInput) -> PaperAnalysisResult:
+        import httpx
+
+        response = httpx.post(
+            f"{self.base_url}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": self.model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "You analyze AI research papers for implementation planning. "
+                            "Return only valid JSON matching the requested schema. "
+                            "Do not claim implemented work; identify MVP scope, gaps, and exclusions."
+                        ),
+                    },
+                    {"role": "user", "content": self._build_prompt(paper)},
+                ],
+                "temperature": 0,
+                "response_format": {"type": "json_object"},
+            },
+            timeout=self.timeout_seconds,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        content = payload["choices"][0]["message"]["content"]
+        return self._parse_result(content)
+
+    def _build_prompt(self, paper: PaperInput) -> str:
+        text = paper.text[:120_000]
+        return f"""Analyze this paper and return a JSON object with these keys:
+title: string
+summary: string
+key_contributions: list of strings
+implementation_targets: list of strings
+required_input_data: list of strings
+required_output_format: list of strings
+required_models_or_libraries: list of strings
+evaluation_methods: list of strings
+equations_or_pseudocode: list of strings
+unspecified_parts: list of strings
+mvp_scope: list of strings
+excluded_scope: list of strings
+
+Paper source: {paper.path.name}
+
+Paper text:
+{text}
+"""
+
+    def _parse_result(self, content: str) -> PaperAnalysisResult:
+        try:
+            data = json.loads(content)
+        except json.JSONDecodeError as exc:
+            raise ValueError("LLM analysis did not return valid JSON.") from exc
+
+        def string_value(key: str) -> str:
+            value = data.get(key)
+            return value if isinstance(value, str) and value.strip() else "Unspecified"
+
+        def string_list(key: str, fallback: list[str]) -> list[str]:
+            value: Any = data.get(key)
+            if not isinstance(value, list):
+                return fallback
+            cleaned = [str(item).strip() for item in value if str(item).strip()]
+            return cleaned or fallback
+
+        return PaperAnalysisResult(
+            title=string_value("title"),
+            summary=string_value("summary"),
+            key_contributions=string_list("key_contributions", ["No key contributions returned by the LLM."]),
+            implementation_targets=string_list("implementation_targets", ["Produce a reproducible implementation plan."]),
+            required_input_data=string_list("required_input_data", ["Paper file"]),
+            required_output_format=string_list("required_output_format", ["Markdown implementation artifacts"]),
+            required_models_or_libraries=string_list("required_models_or_libraries", ["Python standard library"]),
+            evaluation_methods=string_list("evaluation_methods", ["Validation and reviewer checks"]),
+            equations_or_pseudocode=string_list("equations_or_pseudocode", ["No equations or pseudocode returned by the LLM."]),
+            unspecified_parts=string_list("unspecified_parts", ["LLM did not identify implementation gaps."]),
+            mvp_scope=string_list("mvp_scope", ["Structured implementation artifacts"]),
+            excluded_scope=string_list("excluded_scope", ["Claims not supported by the paper text"]),
+        )
+
+
+class PaperReader:
+    """Reads supported paper files."""
 
     def read(self, path: Path) -> PaperInput:
         if not path.exists():
@@ -23,18 +143,36 @@ class PaperReader:
         if suffix in {".md", ".txt"}:
             text = path.read_text(encoding="utf-8")
         elif suffix == ".pdf":
-            text = (
-                f"# PDF input: {path.name}\n\n"
-                "The MVP detected a PDF file. Full PDF parsing is a future tool integration; "
-                "this run records the file as the paper source and uses placeholder analysis."
-            )
+            text = self._read_pdf(path)
         else:
             raise ValueError(f"Unsupported paper format: {suffix}")
         return PaperInput(path=path, text=text)
 
+    def _read_pdf(self, path: Path) -> str:
+        try:
+            from pypdf import PdfReader
+        except ImportError as exc:
+            raise RuntimeError("PDF input requires the pypdf package. Install project dependencies and retry.") from exc
+
+        reader = PdfReader(str(path))
+        pages: list[str] = []
+        for index, page in enumerate(reader.pages, start=1):
+            extracted = page.extract_text() or ""
+            if extracted.strip():
+                pages.append(f"# Page {index}\n\n{extracted.strip()}")
+        text = "\n\n".join(pages).strip()
+        if not text:
+            raise ValueError(f"No extractable text was found in PDF: {path}")
+        return text
+
 
 class PaperAnalyzer:
+    def __init__(self, llm_client: LLMAnalysisClient | None = None) -> None:
+        self.llm_client = llm_client
+
     def analyze(self, paper: PaperInput) -> PaperAnalysisResult:
+        if self.llm_client is not None:
+            return self.llm_client.analyze(paper)
         title = self._extract_title(paper)
         lines = [line.strip() for line in paper.text.splitlines() if line.strip()]
         summary = self._summarize(lines)
@@ -58,7 +196,6 @@ class PaperAnalyzer:
             unspecified_parts=[
                 "Exact LLM prompting strategy is not specified.",
                 "Repository-specific implementation target language beyond Python is not specified.",
-                "PDF parsing backend is not specified.",
             ],
             mvp_scope=[
                 "Single orchestrator pipeline",
@@ -67,8 +204,8 @@ class PaperAnalyzer:
                 "Reviewer sub-agent design as a deterministic module",
             ],
             excluded_scope=[
-                "Real LLM API calls",
-                "Full PDF semantic extraction",
+                "LLM paper analysis unless explicitly configured",
+                "Semantic recovery from scanned image-only PDFs",
                 "Automatic generation of arbitrary research code repositories",
             ],
         )

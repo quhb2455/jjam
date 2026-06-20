@@ -19,11 +19,11 @@ class CodeImplementer:
 {bullet_list(plan.component_targets)}
 
 ## Execution Boundary
-This MVP records a deterministic implementation scaffold. Real paper-specific algorithms should be added under a generated project package in a future iteration after the reviewer confirms the target scope.
+This MVP records a deterministic implementation scaffold. Real paper-specific algorithms should be added under a generated project package after the reviewer confirms the target scope and the LLM or heuristic analysis has identified implementable details.
 """
         assumptions = [
-            "The MVP uses deterministic local heuristics instead of LLM calls.",
-            "PDF input is accepted but full semantic PDF parsing is deferred to a paper parser tool.",
+            "The default analyzer uses deterministic local heuristics unless an LLM provider is explicitly configured.",
+            "PDF input is parsed as extractable text with pypdf; scanned image-only PDFs require a future OCR tool.",
             "The reviewer sub-agent is represented by a deterministic module in this repository.",
             "Generated implementation output is documentation-first scaffolding unless the paper provides directly implementable pseudocode.",
         ]
