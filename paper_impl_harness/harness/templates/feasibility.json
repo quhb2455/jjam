@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "paper": {
+    "title": "",
+    "pdf": "",
+    "sha256": "",
+    "pages": 0
+  },
+  "decision": "pending",
+  "scores": {
+    "method_specification": 0,
+    "resource_feasibility": 0,
+    "data_asset_access": 0,
+    "evaluation_feasibility": 0,
+    "dependency_feasibility": 0
+  },
+  "binding_constraints": [],
+  "missing_information": [],
+  "assumptions": [],
+  "implementation_scope": {
+    "included": [],
+    "excluded": []
+  },
+  "paper_evidence": []
+}

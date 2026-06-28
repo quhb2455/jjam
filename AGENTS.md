@@ -1,66 +1,75 @@
-# AGENTS.md
+# Codex Paper Implementation Repository
 
-## Project Purpose
-This repository implements a Codex-based Agent Harness that takes AI papers with relatively few external constraints and turns them into structured implementation artifacts, review outputs, and reproducible reports.
+This repository contains a reusable paper-implementation harness and isolated paper workspaces. When asked to implement a paper, you are the reasoning engine: do not build an orchestrator that calls an external LLM API.
 
-## Architecture
-The project uses a single Orchestrator-first architecture. `paper_agent.orchestrator.Orchestrator` owns the end-to-end workflow and invokes deterministic stages for paper analysis, implementation planning, tooling planning, implementation scaffolding, validation, reviewer evaluation, and reporting.
+## Repository boundaries
 
-The initial MVP must not grow into a complex multi-agent system. The only sub-agent concept is the Reviewer Sub-agent, represented by a deterministic reviewer module with a clear input/output contract.
+- `paper_impl_harness/` is harness infrastructure. Read it, but do not modify it during a paper implementation.
+- `papers/` contains input PDFs.
+- `implementations/<paper-title-slug>/` is the only place where paper-specific code, environments, tests, reports, and generated evidence may be written.
+- `_useless/` is archived history. Never use it as implementation input.
+- The root `README.md` describes this repository and must not be replaced with a paper README.
 
-## Skill Usage Rules
-- Use existing default Skills before proposing new Skills.
-- Keep Skills focused on repeatable workflow stages.
-- Skill outputs must be written as explicit artifacts.
-- Do not hide assumptions inside Skill behavior; write them to `assumptions.md`.
+## Start a paper implementation
 
-Default Skills:
-- `paper-analysis`
-- `implementation-planning`
-- `code-implementation`
-- `validation`
-- `paper-code-review`
-- `final-report-generation`
-- `readme-generation`
+1. Read `paper_impl_harness/CODEX_TASK.md` and all policy files in `paper_impl_harness/harness/`.
+2. Inspect the paper PDF sufficiently to determine its exact title.
+3. Prepare an isolated workspace. Pass the title explicitly so its stable slug becomes the directory name:
 
-## Tool Usage Rules
-- Use the default Tool Registry first.
-- Do not create a new Tool for every paper.
-- Any additional Tool must document its name, reason, input format, output format, failure conditions, and implementation priority before implementation.
-- Tool failures must be surfaced in validation or review artifacts.
+```bash
+uv run --project paper_impl_harness paper-harness prepare papers/<paper.pdf> --title "<Exact Paper Title>"
+```
 
-Default Tool candidates:
-- filesystem tool
-- git tool
-- python execution tool
-- test runner tool
-- package inspection tool
-- paper parser tool
-- report writer tool
+4. Continue all work inside the workspace path printed by the command.
+5. Never write paper code, paper documentation, or paper dependency files at the repository root or inside `paper_impl_harness/`.
 
-## Reviewer Sub-agent Usage Rules
-- The Reviewer Sub-agent compares paper content against generated implementation artifacts.
-- It must evaluate coverage, algorithmic fidelity, behavioral checks, and reproducibility.
-- It must produce `review_report.md`, `paper_code_alignment_matrix.md`, and `revision_plan.md`.
-- It must not claim equivalence when only an MVP scaffold exists.
+## Mandatory workflow inside the workspace
 
-## Assumption Recording Rules
-- If implementation details are decided without explicit support from the paper, record them in `assumptions.md`.
-- Assumptions must be specific enough to review later.
-- Assumptions should distinguish MVP decisions from paper claims.
+### 1. Understand the paper
 
-## Test Execution Rules
-- Run unit tests or smoke checks before claiming completion.
-- Report failed tests honestly.
-- Do not delete or ignore failing outputs to make the run look successful.
+Read `.paper-harness/paper-manifest.json`, `.paper-harness/paper.txt`, and the copied `paper.pdf`. Visually inspect figures, equations, tables, and appendices; extracted text is only an index.
 
-## Final Report Rules
-- The final report must include paper summary, implementation target summary, implemented content, paper-to-code mapping, used Skills, used Tools, evaluation results, differences from the paper, excluded items, future work, execution method, environment setup, and configuration notes.
+Complete `docs/paper_summary.md`. Cite pages, sections, equations, figures, tables, or appendices. Separate paper facts from assumptions and implementation choices.
 
-## Prohibited Actions
-- Do not claim that something not described in the paper has been implemented.
-- Do not claim completion without testing.
-- Do not hide failed tests.
-- Do not create an unnecessary multi-agent structure.
-- Do not create new Tools carelessly for every paper.
-- Do not implement functionality without a README.
+### 2. Decide implementability
+
+Use `paper_impl_harness/harness/ASSESSMENT_RUBRIC.md`. Complete `docs/feasibility_report.md` and `.paper-harness/feasibility.json`, then run from the repository root:
+
+```bash
+uv run --project paper_impl_harness paper-harness check implementations/<paper-title-slug> --phase assessment
+```
+
+- `feasible`: the central method and meaningful tests can be implemented locally.
+- `partial`: a faithful core is possible, but named components or the full experiment are not.
+- `not_feasible`: the central method cannot be responsibly reconstructed with available information/resources.
+
+For `partial`, state exact boundaries and deviations. For `not_feasible`, stop after the summary, feasibility report, and unblock plan; do not create a misleading mock implementation.
+
+### 3. Specify and implement
+
+Complete `docs/implementation_plan.md` before coding. Map paper concepts to modules, interfaces, shapes, equations, configuration, tests, and acceptance criteria.
+
+Follow `paper_impl_harness/harness/CONVENTIONS.md`. Keep the mathematical core small, deterministic where practical, configurable, import-safe, and independently testable. Do not claim unavailable datasets, weights, services, compute scales, or experiments were reproduced.
+
+### 4. Verify fidelity
+
+Follow `paper_impl_harness/harness/VERIFICATION_PROTOCOL.md`. Complete:
+
+- `.paper-harness/implementation-manifest.json`
+- `.paper-harness/alignment.json`
+- `.paper-harness/validation.json`
+- `docs/paper_code_alignment.md`
+- `docs/validation_report.md`
+
+Every central claim must link a paper location, code path/symbol, and test or experiment. Distinguish structural, numerical, and empirical evidence. Perform a separate paper-to-code review pass after coding.
+
+### 5. Deliver and validate
+
+The workspace must contain its own `README.md`, source code, tests/small experiments, required reports, and evidence JSON. Run:
+
+```bash
+uv run --project paper_impl_harness paper-harness check implementations/<paper-title-slug> --phase final --run-commands
+```
+
+Do not declare completion while the final gate fails. Report implemented, verified, deviating, and unverified scope honestly.
+

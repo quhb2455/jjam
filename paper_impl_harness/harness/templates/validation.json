@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "overall_status": "pending",
+  "structural": {
+    "status": "pending",
+    "evidence": []
+  },
+  "numerical": {
+    "status": "pending",
+    "evidence": []
+  },
+  "empirical": {
+    "status": "pending",
+    "evidence": []
+  },
+  "review_pass_completed": false,
+  "known_deviations": [],
+  "unverified_claims": []
+}

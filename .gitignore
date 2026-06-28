@@ -1,9 +1,14 @@
+**/.paper-harness/paper.txt
+**/.paper-harness/check-results.json
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
-.uv-cache/
+.env
+.env.*
+!.env.example
 dist/
 build/
 *.egg-info/
-.env
+
+_useless/
