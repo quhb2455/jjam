@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "status": "pending",
+  "language": "",
+  "source_files": [],
+  "test_files": [],
+  "entrypoints": [],
+  "validation_commands": [
+    {
+      "name": "tests",
+      "command": []
+    }
+  ],
+  "environment": {
+    "setup": "",
+    "seed": "",
+    "device": ""
+  }
+}

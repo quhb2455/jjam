@@ -1,0 +1,11 @@
+[repository]
+input_dir = "papers"
+output_dir = "implementations"
+
+[workspace]
+state_dir = ".paper-harness"
+docs_dir = "docs"
+
+[validation]
+command_timeout_seconds = 300
+minimum_document_bytes = 120

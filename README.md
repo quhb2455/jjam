@@ -1,47 +1,42 @@
-# Paper Agent Harness
+# Codex Paper Implementations
 
-Paper Agent Harness is a Codex-oriented MVP for turning AI papers into structured implementation artifacts. It uses one Orchestrator, reusable Skills, a default Tool Registry, and a Reviewer Sub-agent design to analyze a paper, plan an implementation, scaffold MVP outputs, validate them, and write final reports.
+This repository uses Codex and a local, API-free harness to turn research-paper PDFs into isolated, traceable implementations. The harness supplies the workflow and evidence gates; each paper gets its own codebase under `implementations/`.
 
-## Setup
+## Repository layout
 
-```bash
-python -m pip install -e .[dev]
+```text
+.
+├── AGENTS.md                  # Codex routing and mandatory workflow
+├── papers/                    # Input PDFs
+├── paper_impl_harness/        # Reusable harness; never paper-specific output
+│   ├── README.md
+│   ├── CODEX_TASK.md
+│   ├── harness/
+│   ├── src/paper_harness/
+│   └── tests/
+└── implementations/          # One independent directory per paper
+    └── <paper-title-slug>/
+        ├── paper.pdf
+        ├── README.md
+        ├── src/
+        ├── tests/
+        ├── docs/
+        └── .paper-harness/
 ```
 
-## Run The Sample
+## Use with Codex
 
-```bash
-paper-agent run --paper examples/sample_paper.md --out runs/sample_run
+1. Put one or more PDFs in `papers/`.
+2. Start a new Codex session at the repository root.
+3. Ask:
+
+```text
+papers/<file>.pdf를 구현해줘. AGENTS.md와 paper_impl_harness/CODEX_TASK.md를 따르고 최종 검증까지 완료해줘.
 ```
 
-The run writes:
+Codex determines the exact paper title, prepares `implementations/<paper-title-slug>/`, assesses feasibility, implements the supported scope, and runs the evidence gates.
 
-- `paper_summary.md`
-- `implementation_spec.md`
-- `implementation_plan.md`
-- `tooling_plan.md`
-- `validation_result.md`
-- `review_report.md`
-- `paper_code_alignment_matrix.md`
-- `revision_plan.md`
-- `final_report.md`
-- `README.generated.md`
+No manual virtual-environment activation is needed. `uv run --project paper_impl_harness ...` manages the harness environment. A paper implementation may have its own environment inside its workspace if its dependencies require one.
 
-The implementation stage also writes `prototype_implementation.md` and `assumptions.md`.
+See [paper_impl_harness/README.md](paper_impl_harness/README.md) for CLI and internal design details.
 
-## Test
-
-```bash
-pytest
-```
-
-## Configuration
-
-The MVP has no required runtime configuration file. Future versions should add typed configuration for model providers, MCP tools, PDF parsers, and test runners.
-
-## Current Limitations
-
-- Markdown and plain text inputs are read directly.
-- PDF inputs are accepted as a placeholder boundary, but full PDF parsing is deferred.
-- Paper analysis is heuristic and deterministic.
-- The Reviewer Sub-agent is implemented as a deterministic module rather than a separate live agent process.

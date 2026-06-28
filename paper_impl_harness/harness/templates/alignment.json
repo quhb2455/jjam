@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "claims": [
+    {
+      "id": "C1",
+      "claim": "",
+      "central": true,
+      "paper_evidence": [
+        {
+          "location": "",
+          "detail": ""
+        }
+      ],
+      "code_evidence": [
+        {
+          "path": "",
+          "symbol": "",
+          "detail": ""
+        }
+      ],
+      "validation_evidence": [
+        {
+          "path": "",
+          "test": "",
+          "detail": ""
+        }
+      ],
+      "evidence_level": "pending",
+      "status": "pending",
+      "deviation": ""
+    }
+  ]
+}
